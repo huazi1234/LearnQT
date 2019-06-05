@@ -1,0 +1,164 @@
+Qt之translate、tr关系与中文问题详解
+
+https://blog.csdn.net/bruce_0712/article/details/54846956
+题外话：何时使用 tr ？
+
+在论坛中漂，经常遇到有人遇到tr相关的问题。用tr的有两类人：
+
+(1)因为发现中文老出问题，然后搜索，发现很多人用tr，于是他也开始用tr
+(2)另一类人，确实是出于国际化的需要，将需要在界面上显示的文件都用tr包起来，这有分两种：
+(2a) 用tr包住英文(最最推荐的用法，源码英文，然后提供英文到其他语言的翻译包)
+(2b) 用tr包住中文(源码用中文，然后提供中文到其他语言的翻译包)
+注意哦，如果你正在用tr包裹中文字符，却不属于(2b)，那么，这是个信号：
+
+你在误用tr
+你需要的是QString，而不是tr
+如果你确实属于(2b)，请做好心理准备，你可能还会遇到很多困难,请考虑Qt国际化（源码含中文时）的点滴分析
+
+tr 是做什么的？下面二者的区别是什么？
+
+QString text1 = QObject::tr("hello");
+ QString text2 = QString("hello");
+tr是用来实现国际化，如果你为这个程序提供了中文翻译包(其中hello被翻译成中文"你好")，那么text1的内容将是中文"你好"；如果你为程序提供且使用日文翻译包，那么text1的内容将是日文。
+
+tr是经过多级函数调用才实现了翻译操作，是有代价的，所以不该用的时候最好不要用。
+
+关注的对象
+本文关注的是tr或translate中包含中文字符串的情况：
+
+QObject::tr()
+
+QCoreApplication::translate()
+
+QTextCodec::setCodecForTr
+
+这个问题本多少可说的。因为涉及到的编码问题和QString 与中文问题中是完全一样的，只不过一个是用的setCodecForCStrings一个用的是setCodecForTr。
+
+简单回顾QString的中文问题
+QString 采用的unicode，在中文支持上不存在任何问题
+"我是中文" 这是传统的 const char * 的窄字符串
+
+当将窄字符串赋值到QString时，我们需要告诉它我们的窄串采用的何种编码(gbk?、utf-8?)
+究竟何种编码主要取决于我们的源代码文件的编码(windows上一般是gbk，其他平台一般utf-8)
+例子：
+
+QString s1 = "我是中文";
+QString s2("我是中文");
+QString s3;
+s3 = "我是中文"
+s1、s2 用的是QString的构造函数QString ( const char * str )
+
+s3 用的是QString的赋值操作符 QString & operator= ( const char * str)
+
+如果不指定编码，s1,s2,s3将全部都是(国内大多数人所称的)乱码。因为QString将这些const char *按照latin1来解释的，而不是用户期待的gbk或utf8。
+
+QTextCodec::setCodecForCStrings(QTextCodec::codecForName("GB2312"));
+QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"))
+这两条语句中的一条可以解决问题，至于如何选择，此处不再重复。
+
+QObject::tr
+说实话，在tr中使用中文不是个好主意。不过既然总有人用（无论是(1)还是(2b)），而且总有人遇到问题，所以还是简单整理一下吧。
+
+相比QCoreApplication::translate，大家用tr应该用的很多了，尽管不少人不清楚tr究竟是做什么的^_^
+
+
+
+tr("我是中文");
+这调用的是下面这个函数(至少我们可这么认为是)。
+
+QString QObject::tr ( const char * sourceText, const char * disambiguation = 0, int n = -1 )
+与QString("我是中文")完全一样，你必须告诉tr这个窄字符串是何种编码？你不告诉它，它就用latin1。于是所谓的乱码问题就出来了。
+
+如何告诉tr你写的这几个汉字在磁盘中保存的是何种编码呢？这正是
+
+QTextCodec::setCodecForTr(QTextCodec::codecForName("GB2312")); 
+QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
+所做的。这两个选择的原则，由于和前文完全一样，此处也不再重复。
+
+如果你的编码采用的utf8，可以直接使用trUtf8而不必设置setCodecForTr。
+
+如果你只关心乱码问题，到此为止就可以了(下面不再关注编码)。如果想对tr进一步了解，不妨。。继续。。
+
+
+QCoreApplication::translate
+我们知道tr是用于实现程序的国际化(或者说多语言翻译)，看Qt相关资料的话，我们知道实现该功能的还有下面这个函数：
+
+QString QCoreApplication::translate ( const char * context, const char * sourceText, const char * disambiguation, Encoding encoding, int n )
+其实，这个才是真正进行翻译操作的函数，前面我们提到的tr最终是通过调用该函数来实现翻译功能的(稍后我们会看tr是如何调用translate的)。
+
+对tr和这个函数，manual中都有比较详尽的解释。我们这儿简单看一下它的这几个参数：
+
+context 上下文，一般就是需要翻译的字符串所在的类的名字
+sourceText 需要翻译的字符串。(我们关注的编码其实就是它的编码)
+disambiguation 消除歧义用的。(比如我们的类内出现两处"close"，一处含义是关闭，另一处含义是亲密的。显然需要让翻译人员知道这点区别)
+encoding 指定编码。它有两个值
+CodecForTr 使用setCodecForTr()设置的编码来解释 sourceText
+
+UnicodeUTF8 使用utf8编码来解释 sourceText
+其实这两个分别对应tr和trUtf8
+n 处理单复数(对中文来说，不存在这个问题)
+tr与translate
+这两个函数的说明，一个在QObject的manual，另一个在QCoreApplication的manual中。
+
+介绍一下tr与translate的关系。前面提到了，tr调用的是translate。如果仅仅这样一说，没有证据，还真难以让大家相信。好吧，继续
+
+tr 在何处定义
+你可能说：这不废话吗，manual中写得明白的，它是QObject的静态成员函数。而且还有源码为证：
+
+//来自 src/corelib/kernel/qobject.h 
+#ifdef qdoc 
+static QString tr(const char *sourceText, const char *comment = 0, int n = -1);
+static QString trUtf8(const char *sourceText, const char *comment = 0, int n = -1);
+#endif
+嘿嘿，差点就被骗了，发现没：它们被预处理语句包住了。
+
+这说明了什么呢？说明了这段代码仅仅是用来生成Qt那漂亮的文档的(qdoc3从代码中抽取信息，生成一系列的html格式的manual)。
+
+啊，也就是说，这是假的。那么真正的定义呢？？在一个大家都很熟悉的地方,猜猜看？
+
+这就是
+
+Q_OBJECT
+该宏的定义在src/corelib/kernel/qobjectdefs.h中
+
+ #define Q_OBJECT \
+ public: \
+ Q_OBJECT_CHECK \
+ static const QMetaObject staticMetaObject; \
+ Q_OBJECT_GETSTATICMETAOBJECT \
+ virtual const QMetaObject *metaObject() const; \
+ virtual void *qt_metacast(const char *); \
+ QT_TR_FUNCTIONS \
+ virtual int qt_metacall(QMetaObject::Call, int, void **); \
+ private:
+
+其中的宏QT_TR_FUNCTIONS
+
+ #  define QT_TR_FUNCTIONS \
+ static inline QString tr(const char *s, const char *c = 0) \
+ { return staticMetaObject.tr(s, c); } \
+ static inline QString trUtf8(const char *s, const char *c = 0) \
+ { return staticMetaObject.trUtf8(s, c); } \
+ static inline QString tr(const char *s, const char *c, int n) \
+ { return staticMetaObject.tr(s, c, n); } \
+ static inline QString trUtf8(const char *s, const char *c, int n) \
+ { return staticMetaObject.trUtf8(s, c, n); }
+现在看到：tr调用的是 staticMetaObject对象的tr函数，staticMetaObject 的定义在moc生成的 xxx.moc 或 moc_xxx.cpp 文件内(你随时可以验证的)。
+
+staticMetaObject 是一个 QMetaObject 类的实例，我们继续看一下该类的源码：
+
+ /*!
+ \internal 
+*/
+ QString QMetaObject::tr(const char *s, const char *c) const
+ {
+ return QCoreApplication::translate(d.stringdata, s, c, QCoreApplication::CodecForTr);
+ }
+ /*!
+ \internal 
+*/ 
+QString QMetaObject::trUtf8(const char *s, const char *c) const 
+{     
+return QCoreApplication::translate(d.stringdata, s, c, QCoreApplication::UnicodeUTF8); 
+}
+至此，我们应该都看清楚了。我们的 Q_OBJECT 宏展开后为生成 tr ，tr调用QCoreApplication的translate函数。而该函数需要指定编码。
