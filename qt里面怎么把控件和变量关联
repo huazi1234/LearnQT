@@ -1,0 +1,5 @@
+
+我用界面编辑器得到了个对话框界面，上面放了一堆按钮，现在想将某个按钮和dialog类中的QPushButton *Button_Close 变量关联起来，让这个Button_Close代表这个按钮...
+该怎么搞呢@@
+
+QPushButton *Button_Close=ui->BClose;
