@@ -1,0 +1,6 @@
+
+用VS2015使用别人的QT工程的经验
+1. 安装QT 的相应版本，在VS配置里也添加此种版本，且设成默认版本
+2. 把QT的生成文件也加到VS里Generate Files的File Filter里
+3. 把一些相关的Qt5Gui.dll，以及Qt5Guid.dll Qt5Core.dll，Qt5Cored.dll Qt5Widgets.dll Qt5Widgetsd.dll 以及plugins 的platform 
+   下的一些文件（如qwindows.dll qwindowsd.dll）都考到exe同级目录下。
