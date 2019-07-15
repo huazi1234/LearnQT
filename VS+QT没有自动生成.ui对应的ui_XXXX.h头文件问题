@@ -1,0 +1,7 @@
+VS+QT没有自动生成.ui对应的ui_XXXX.h头文件问题
+
+ 版权声明：本文为博主原创文章，未经博主允许不得转载。 https://blog.csdn.net/whiteblack_dream/article/details/81813462
+1. 在qt安装包下-> qbase -> bin 目录下有对应的uic.exe用来生成 .ui对应的ui_XXXX.h头文件 
+所以 cmd进入bin目录，运行uic XXXX.ui ui_XXXX.h就可以生成，也可以添加路径进行指定 如： uic F:\DTS\trunk\src\send\mainwindow.ui F:\DTS\trunk\src\send\ui_mainwindow.h
+
+2. 在VS下，右键 .ui文件 -> 编译，就会生成对应的ui_XXXX.h头文件
