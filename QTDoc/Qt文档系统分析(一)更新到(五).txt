@@ -1,0 +1,494 @@
+Qt文档系统分析(一)更新到(五)
+写在前面
+
+只要打开Qt Assistant或Qt Creator的Help，或是打开在线版的 http://doc.qt.nokia.com ,Qt的漂亮的文档就会呈现在我们眼前。
+而且 Qt的文档，长期以来似乎都是Qt的一大优势。比如大家在比较Qt和Wx，或比较Qt和GTK+时，Qt的文档似乎总是更胜一筹。
+那么，这些文档时怎么生成的呢？
+幕后英雄们
+当然，这些文档幕后的应用是Qt的开发人员。我们对他们表示感谢。
+但我们这儿关注的英雄呢？是生成这些文档的软件：
+qdoc3
+qhelpgenerator
+qcollectiongenerator
+先简单介绍一下它们的作用：(个人理解，不当请指正)
+qdoc3 工作时需要一个配置文件 xxx.qdocconf (Qt Document Configure)
+根据该文件的设置，将源码代码中的各种符合规则的注释提取出来，生成一系列的 .html 文件
+如果只用来在线显示，这一步就足够了
+qhelpgenerator 工作时需要一个配置文件 xxx.qhp(Qt Help Project)
+根据该文件设置，将一系列的 html 文件变成 .qch 文件
+如果只是要求生成的用文件能通过 assistant 查看，到这一步也足够了
+qcollectiongenerator 工作时需要一个配置文件 xxx.qhcp(Qt Help Collection Project)
+该文件可以管理一系列的 .qch 文件。比如我们装完Qt后就有: qt.qch , assistant.qch, qmake.qch 等
+该文件可以对 assistant 显示的外观进行定制
+考虑到这些东西内容太多了，主要关注下qdoc3吧
+一个小例子
+先看一个例子，我们先编写一个很小很小的Qt程序，
+先看first.pro文件，其实没什么看的，是吧
+
+TARGET = first
+SOURCES += main.cpp  widget.cpp
+HEADERS  += widget.h
+
+
+
+看一下我们的Widget类(其实是一个空类),下面是头文件 widget.h
+
+#ifndef WIDGET_H
+#define WIDGET_H
+#include <QtGui/QWidget>
+class Widget : public QWidget
+{
+    Q_OBJECT
+public:
+    Widget(QWidget *parent = 0);
+    ~Widget();
+public slots:
+    void setValue(double v);
+signals:
+    void signal1();
+    void signal2(const QString&);
+};
+#endif // WIDGET_H
+
+
+
+这是类的实现 widget.cpp
+
+#include "widget.h"
+
+/*!
+  \class Widget
+
+  \brief The Empty Widget Class provides nothings.
+
+  The Empty Widget is a widget that
+
+  \sa QWidget
+  */
+
+/*!
+  \fn void Widget::signal1()
+
+  This signal is emitted when .
+  */
+
+/*!
+  \fn void Widget::signal2(const QString&)
+
+  This signal is emitted when
+  */
+
+/*!
+  Creates a Widget Window.
+  */
+Widget::Widget(QWidget *parent)
+    : QWidget(parent)
+{
+}
+
+/*!
+  Destroys this Widget.
+  */
+Widget::~Widget()
+{
+
+}
+
+/*!
+  Set a new value \a v.
+  */
+void Widget::setValue(double v)
+{
+}
+
+
+
+再看一下 main.cpp 文件
+
+/*!
+  \page index.html
+  \title First Exmaple
+
+  \section1 Description
+  This is a demo program.
+
+  \section1 Class
+  \list
+  \o \l Widget
+  \o second
+  \o third
+  \endlist
+
+  */
+#include <QtGui/QApplication>
+#include "widget.h"
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    Widget w;
+    w.show();
+
+    return a.exec();
+}
+
+
+
+万事具备，还欠什么呢？注意我们前面提到 qdoc3 需要什么来着？
+
+对了，再创建一个 first.qdocconf 文件就好了
+
+project = First
+description = First QDoc Exmaple
+outputdir = html
+headerdirs = .
+sourcedirs = .
+
+
+
+一切准备妥当了，运行一下试试吧
+
+qdoc3 first.qdocconf
+
+
+
+怎么样，看到效果了吧？什么？不如Qt自带的手册好看，当然，网页头、网页尾、css什么我们都没设置。
+[attachment=4310]
+
+yleesun	2010-09-08 09:02
+关于如何写first.qdocconf 处说的不够详细！
+
+dbzhang800	2010-09-10 08:39
+（懒得调整结构与样式了，感兴趣可以直接看blog中的版本：http://hi.baidu.com/cyclone/blog/item/ad615aaf2a3475f5fbed50c8.html）
+为了尽快看到qdoc3生成的文档，在Qt文档系统分析(一)中，我们举了一个小小的可运行、可生成文档的例子。因为篇幅和时间有限，上文中未给出任何解释。本文的任务呢，就是把上个例子尽我所能地解释一下
+qdocconf文件
+
+前面我们提到了，qdoc3 工作时需要一个 xxx.qdocconf 文件：
+
+project = First
+description = First QDoc Exmaple
+outputdir = html
+headerdirs = .
+sourcedirs = .
+
+格式上，它和qmake的配置文件 .pro 是一致的：都是 "变量名 = 值" 这种格式
+
+    * outputdir
+          o 控制生成的 html 文档输出到哪个目录(本例中，输出到 ./html 目录下)
+    * headerdirs 和 sourcedirs
+          o 设置我们的 .h 和 .cpp 文件分别在哪个目录
+          o 为什么要设置这个呢？因为它要从我们的代码中提取信息啊^_^
+    * project 和 description
+          o 其实这两个和生成我们需要的文档没有必要的联系(所以你可以不要它们)
+          o 如果你运行过前面的例子，你会发现会生成html目录下生成了一个 first.index 文件
+          o index文件的作用，我们暂且不涉及。
+
+代码注释
+
+通过对前面的配置文件了解，我们知道，qdoc3之所以能生成这么漂亮的文档，依赖就是我们在代码中添加的注释。那么注释怎么写才好呢？注释放要放在什么位置呢？
+格式
+
+/*!
+...
+*/
+
+
+    *  注意到没，这是采用的C风格的注释，只不过要再加个感叹号。以备qdoc3来进行处理。
+    * qtcreator对此提供了内置的支持，如果你试过，你会发现加与不加感叹号，注释所显示的颜色是有所不同的。
+
+位置
+
+    * 规则一：
+          o  简单地说，就是我们需要在每一个需要生成文档的类和函数等定义的前面放置一个 /*!...*/ 注释块。
+
+由于类的定义都在头文件.h 内，如果按照规则一，我们我们在头文件的类定义前面放置注释块。但这样一来，别人看头文件的话，就会感到比较乱。所以，在前面的例子中，所有的注释块，都放到了相应的 .cpp文件内。怎么放呢？看前面的例子：
+
+/*!
+  \fn void Widget::signal2(const QString&)
+
+  This signal is emitted when
+  */
+
+/*!
+  Creates a Widget Window.
+  */
+Widget::Widget(QWidget *parent)
+    : QWidget(parent)
+{
+}
+
+
+我们都是学Qt的，肯定知道"信号"只不过是一个普通的函数而已，所以我们处理起来和其他函数是完全一样的。只是我们用了命令 \fn后跟函数的原型。
+
+这就是下面要说的，
+
+    * 规则二：
+          o 如果注释块和定义的类、函数等分离，那么我们需要使用特殊的命令来标记该注释块。
+
+\class 类
+
+\enum 枚举
+
+\fn 函数
+
+\macro 宏
+
+\namespace 命名空间
+
+\property Qt属性
+
+\variable 变量
+main.cpp注释
+
+先解释一下我们前面的注释生成的html文件:
+
+    * qdoc3工作时，会为我们的每个类生成两个html页面，分别为"类名.html"和"类名-members.html"。这两个对应我们非常非常熟悉的"QString Class Reference"及 "List of All Members for QString"这两个页面。（如果你没运行前面的例子，不妨看看手册中的这两页来找找感觉）
+
+这样一来，是不是有些问题出来了：
+
+    * 这些页面如何管理呢？
+    * 这些类如何联系起来呢？
+    * 用哪个类做首页呢？
+
+如何解决这个问题。
+
+    * 1. 建立一个页面作为起始页。(这是我们例子中做的, index.html)
+    * 2. 起始页中创建到生成的类的页面的链接。(例子中有 \l Widget)
+    * 3. 每个页面的头部创建导航条。(暂时没涉及)
+
+/*!
+  \page index.html
+  \title First Exmaple
+
+  \section1 Description
+  This is a demo program.
+
+  \section1 Class
+  \list
+  \o \l Widget
+  \o second
+  \o third
+  \endlist
+
+  */
+
+
+如果你熟悉html语言，理解这段注释应该没有任何困难^_^
+
+[attachment=4374]
+
+控制文档结构的命令：
+
+part
+       |
+       chapter
+             |
+             section1
+                    |
+                    section2
+                           |
+                           section3
+                                  |
+                                  section4
+
+
+做点改进
+
+    * 有没有觉得 这个注释块放到 main.cpp 有点不爽？因为它们main函数没任何关系
+          o 其实，我们可以新建一个 xxx.qdoc 文件，然后将main.cpp 拷贝到xxx.qdoc中
+          o qdoc3 工作时，不止扫描源代码，还扫描 .qdoc 文件。
+
+一不小心又过了12点了，要睡了，看来下一篇又有得写了。
+
+dbzhang800	2010-09-23 14:37
+http://hi.baidu.com/cyclone/blog/item/fa0185350681671f90ef39aa.html
+
+在 Qt文档系统分析(一) 我们举了使用一个qdoc3的小例子，在 Qt文档系统分析(二) 我们对这个例子进行了简单的分析。但有些内容尽管我们提到了，但没做介绍：
+* xxx.index 文件是做什么用的?
+* 如何为所有的html文件添加统一的头和尾?
+
+这是两个比较重要的东西，本文就主要介绍它们了。
+
+重新贴出前面用的 xxx.qdocconf 文件(不影响理解的前提下此处加了一个url)：
+
+project = First
+description = First QDoc Exmaple
+url = http://www.firstqdocexample.com/0.1.0
+outputdir = html
+headerdirs = .
+sourcedirs = .
+
+
+
+xxx.index
+文件生成
+前面提到 project、description及url是为了生成的 xxx.index 的服务的，而这个index我们自己是用不到的。那么它有什么用呢？
+* project 指定了 xxx.index 文件的名字（即生成 first.index）
+* description 和 url 我们可以通过打开该 first.index 文件来观察
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE QDOCINDEX>
+<INDEX url="http://www.firstqdocexample.com/0.1.0" title="First QDoc Exmaple" version="">
+...
+
+
+看到了没？它们是INDEX节点的两个属性。
+
+文件作用
+接下来呢，我们通过qt.index文件来解释xxx.index文件的作用。qt.index坐落于Qt安装目录下的doc/html中，你可以随时查看验证。
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE QDOCINDEX>
+<INDEX url="http://qt.nokia.com/doc/4.7" title="Qt Reference Documentation" version="4.7.0">
+...
+
+
+
+文件中的主要内容就Qt中所有类以及信号、槽、属性等的索引。
+
+为了说明它的作用，我们修改[[Qt文档系统分析(一)]]中所用的例子，添加一行{{{indexes = $QTDIR/doc/html/qt.index}}}(即我们使用qt.index):
+
+project = First
+description = First QDoc Exmaple
+url = http://www.firstqdocexample.com/0.1.0
+outputdir = html
+indexes = $QTDIR/doc/html/qt.index
+headerdirs = .
+sourcedirs = .
+outputencoding = UTF-8
+
+
+执行
+
+qdoc3 first.qdocconf
+
+
+重新生成文档
+
+[attachment=4379]
+
+看到区别了吗？
+* 它显示出我们的Widget类继承自QWidget，点击QWidget可链接到qt在线文档中的QWidget的manual。
+* 列出了它继承的所有public函数、信号、槽，这些也都可以链接到qt的在线文档
+
+这些变化是怎么实现的呢？这就是我们的通过 qt.index 来实现的，因为这个文件中包含所有的索引信息，以及相应文档的http链接。
+
+现在回头看看我们的 first.index,你能看到它的用处了吗？如果其他人需要继承我们的Widget类，那么，借助first.index文件，就可以自动链接到我们这儿生成的html文档(当然，我们要把它放到 url 所指定的地址处)。
+
+配置html
+查看Qt自带的文档，我们会发现，所有html页面的顶部和底部都是一样的，那么我们如何来实现这个效果呢？
+
+在 xxx.qdocconf 文件中添加下列内容：
+
+HTML.postheader         = "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">\n" \
+                          "<tr>\n" \
+                          "<td class=\"postheader\" valign=\"center\">" \
+                          "<a href=\"index.html\">Home</a> ·" \
+                          " <a href=\"classes.html\">All Classes</a> ·" \
+                          " <a href=\"functions.html\">All Functions</a> ·" \
+                          "</td></tr></table>"
+
+HTML.footer             = "<p /><address><hr /><div align=\"center\">\n" \
+                          "<table width=\"100%\" cellspacing=\"0\" border=\"0\"><tr class=\"address\">\n" \
+                          "<td width=\"40%\" align=\"left\">Copyright © 2010 dbzhang800</td>\n" \
+                          "<td width=\"20%\" align=\"center\">Trademarks</td>\n" \
+                          "<td width=\"40%\" align=\"right\"><div align=\"right\">First Program</div></td>\n" \
+                          "</tr></table></div></address>"
+
+
+看下效果：
+
+[attachment=4378]
+
+当然，还可以通过css对文档显示进行设置,格式如下：
+
+HTML.stylesheets        = classic.css
+
+
+
+另外，Qt文档的左上角一般都有一个logo的图片，那么这个图片怎么添加呢？
+
+[attachment=4377]
+
+我们修改一下前面的postheader,并添加两天语句：
+
+HTML.postheader         = "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">\n" \
+                          "<tr>\n" \
+                          "<td align=\"left\" valign=\"top\" width=\"32\">" \
+                          "<img src=\"images/logo.png\" width=\"50\" height=\"40\" align=\"left\" border=\"0\" />\
+                          "</td>\n" \
+                          "<td class=\"postheader\" valign=\"center\">" \
+                          "<a href=\"index.html\">Home</a> ·" \
+                          " <a href=\"classes.html\">All Classes</a> ·" \
+                          " <a href=\"functions.html\">All Functions</a> ·" \
+                          "</td></tr></table>"
+extraimages.HTML        = logo.png
+imagedirs = .
+
+* 首先准备一个一个 logo.png 图片，随便放入一个目录中，该目录通过 imagedirs 进行指定
+* extraimags.HMTL 用来指示 qdoc3 将该图片拷贝到输出目录下的 images 目录中
+* 在 HTML.postheader 中我们的使用方式就是 {{{images/logo.png}}}
+
+
+wd007	2010-09-24 21:08
+这个不错的说。
+
+dbzhang800	2010-10-01 09:57
+文档分析四：http://hi.baidu.com/cyclone/blog/item/41651d955cb7a4067af4805a.html
+
+和前三篇是一个具体小例子不同，本文主要看一下doxygen及qdoc3的配置文件。
+
+Doxygen与qdoc
+
+    * 渊源
+          o Doxygen 本身是采用Qt编写的
+          o Doxygen 编写的初衷是作者为了给自己的软件生成类似Qt文档的文档（因为1997，Qt的qdoc源码和使用手册都是私有的）
+    * 兼容性
+          o qdoc3 自身都与先前版本不兼容
+          o Doxygen 可能与qdoc的早期版本比较兼容。但与qdoc3差别挺大了
+    * 便利性
+          o qdoc3 可以为 Doxygen 生成其需要的 tags 文件
+          o 同qdoc3一样，Doxygen 内置支持 Qt4.4 以后的帮助系统(xxx.qhp,xxx.qch等)
+
+两个表格不好贴，不贴了...
+
+文档分析五 http://hi.baidu.com/cyclone/blog/item/7c20fbf22692381db07ec591.html
+
+源码中注释格式
+
+考虑一下：qdoc3 是从哪些文件提取信息来生成 Qt Manual 的呢？
+
+    * $QTDIR/src 目录下的 *.cpp 文件
+    * $QTDIR/doc/src 目录下的 *.qdoc 文件
+    * $QTDIR/example 目录下的 *.cpp 文件
+
+只要我们打开前两处的文件，就能见到如下的注释块：
+
+/*!
+*/
+
+注释块中有大量以反斜杠"\"开始的命令，这些命令控制着最终生成的文档的结构。
+
+而打开example中的文件，则能看到类似下面的内容
+
+//! [0]
+//! [0]
+
+这种格式我们暂且不考虑(有命令可以提取两个[0]包住的代码，写入生成到 example 中的文档中)。
+
+
+ilarm	2010-10-08 12:22
+很好！
+
+uidab	2011-02-23 17:25
+学习了!
+
+heiheihahaxp	2011-06-16 15:30
+mark下，回头看看
+
+code_ly	2012-08-13 08:37
+
+
+yuyu414	2017-02-14 11:24
+为何我的目录下没有生成html文件呢，求教啊
+[attachment=16453][attachment=16454][attachment=16455]
