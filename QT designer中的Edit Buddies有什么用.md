@@ -20,3 +20,45 @@ QT designer中的Edit Buddies有什么用？
 ————————————————
 版权声明：本文为CSDN博主「laoyuanpython」的原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接及本声明。
 原文链接：https://blog.csdn.net/LaoYuanPython/article/details/101909730
+
+
+
+只有QLabel 标签对象才可以有伙伴窗口对象，也只有该QLabel对象具有快捷键。
+
+快捷键设置方法：在显示文本的某个字符的前面加一个前缀“&” 就可以定义快捷键了
+
+
+
+ 
+
+ 1 Dialog::Dialog(QWidget *parent)
+ 2     : QDialog(parent)
+ 3 {
+ 4     label1 = new QLabel(this);
+ 5     label1->setText(tr("请输入圆的半径： "));
+ 6     lineEdit = new QLineEdit(this);
+ 7     label2 = new QLabel(this);
+ 8     button = new QPushButton(this);
+ 9     button->setText(tr("显示对应的圆面积"));
+10 
+11     nameLabel = new QLabel("&Name",this);
+12     nameEdit = new QLineEdit(this);
+13     nameLabel->setBuddy(nameEdit);
+14 
+15     phoneLabel = new QLabel("&Phone",this);
+16     phoneEdit = new QLineEdit(this);
+17     phoneLabel->setBuddy(phoneEdit);
+18 
+19     QGridLayout * mainLayout = new QGridLayout(this);
+20     mainLayout->addWidget(label1,0,0);
+21     mainLayout->addWidget(lineEdit,0,1);
+22     mainLayout->addWidget(label2,1,0);
+23     mainLayout->addWidget(button,1,1);
+24 
+25     mainLayout->addWidget(nameLabel,2,0);
+26     mainLayout->addWidget(nameEdit,2,1);
+27     mainLayout->addWidget(phoneLabel,3,0);
+28     mainLayout->addWidget(phoneEdit,3,1);
+29 
+30     connect(button,SIGNAL(clicked()),this,SLOT(showArea()));
+31 }
